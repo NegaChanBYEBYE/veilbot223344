@@ -23,14 +23,14 @@ intents.emojis = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 BOT_OWNER_ID = 515082676559151114
-OWNER_ID = 515082676559151114  # Replace with the actual Discord user ID of the owner
+OWNER_ID = 515082676559151114 
 recently_welcomed={}
 recently_leveled_up = {}
 muted_channels = {}
 purging_channels = {}
 
 
-# Database setup
+# Database
 async def setup_db():
     async with aiosqlite.connect("bot_data.db") as db:
         await db.execute("""CREATE TABLE IF NOT EXISTS modlogs (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER, action TEXT, reason TEXT, timestamp TEXT)""")
@@ -73,20 +73,20 @@ async def ban(ctx, member: discord.Member, *, reason=None):
 @commands.has_permissions(ban_members=True)
 async def unban(ctx, *, user_info: str):
     try:
-        # First try to treat the user_info as a user ID
+        # first try to treat the user_info as a user id
         user_id = int(user_info)
         user = await bot.fetch_user(user_id)
         await ctx.guild.unban(user)
         await ctx.send(f'Unbanned {user.name}')
         return
     except ValueError:
-        # If the user_info is not a valid ID, treat it as a username
+        # if the user_info is not a valid id, treat it as a username
         pass
     except discord.NotFound:
         await ctx.send(f"User ID {user_info} not found.")
         return
 
-    # If the user_info is a username
+    # if the user_info is a username
     banned_users = [entry async for entry in ctx.guild.bans()]
     for ban_entry in banned_users:
         user = ban_entry.user
@@ -97,7 +97,7 @@ async def unban(ctx, *, user_info: str):
 
     await ctx.send(f'User {user_info} not found in the ban list.')
 
-# Kick Command
+# Kick
 @bot.command()
 @commands.has_permissions(kick_members=True)
 async def kick(ctx, member: discord.Member, *, reason=None):
@@ -105,7 +105,7 @@ async def kick(ctx, member: discord.Member, *, reason=None):
     await log_action(member.id, "Kick", reason)
     await ctx.send(f'{member.mention} has been kicked for {reason}')
 
-# Mute Command
+# Mute
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def mute(ctx, member: discord.Member, time: int, *, reason=None):
@@ -123,7 +123,7 @@ async def mute(ctx, member: discord.Member, time: int, *, reason=None):
     await member.remove_roles(role)
     await ctx.send(f'{member.mention} has been unmuted.')
 
-# Unmute Command
+# Unmute
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def unmute(ctx, member: discord.Member):
@@ -132,21 +132,21 @@ async def unmute(ctx, member: discord.Member):
     await log_action(member.id, "Unmute", "N/A")
     await ctx.send(f'{member.mention} has been unmuted.')
 
-# Warn Command
+# Warn
 @bot.command()
 @commands.has_permissions(manage_roles=True)
 async def warn(ctx, member: discord.Member, *, reason=None):
     await log_action(member.id, "Warn", reason)
     await ctx.send(f'{member.mention} has been warned for {reason}')
 
-# Clear Command
+# Clear, basically purge
 @bot.command()
 @commands.has_permissions(manage_messages=True)
 async def clear(ctx, amount: int):
     await ctx.channel.purge(limit=amount)
     await ctx.send(f'{amount} messages have been cleared.')
 
-# Modlogs Command
+# Modlogs
 @bot.command()
 async def modlogs(ctx, member: discord.Member):
     async with aiosqlite.connect("bot_data.db") as db:
@@ -158,6 +158,7 @@ async def modlogs(ctx, member: discord.Member):
         else:
             await ctx.send(f'No moderation logs found for {member.mention}.')
 
+#new channel lockdown logic, not perfectly working
 @bot.command()
 @commands.has_permissions(manage_channels=True)
 async def lockdown(ctx, duration: int = None):
@@ -165,20 +166,20 @@ async def lockdown(ctx, duration: int = None):
     everyone_role = ctx.guild.default_role
 
     try:
-        # Get current permissions for the @everyone role
+        # get current permissions for the @everyone role
         current_permissions = channel.overwrites_for(everyone_role)
 
-        # Only change permissions if they are currently allowed
+        # only change permissions if they are currently allowed
         if current_permissions.send_messages is not False:
             # Deny sending messages for everyone
             await channel.set_permissions(everyone_role, send_messages=False)
             await ctx.send(f"🔒 Channel locked down. No one can send messages.")
 
-            # Handle duration if provided
+            # handle duration if provided
             if duration:
                 await ctx.send(f"Lockdown will last for {duration} seconds.")
                 await asyncio.sleep(duration)
-                # Automatically unlock the channel after the duration
+                # it will automatically unlock the channel after the duration
                 await channel.set_permissions(everyone_role, send_messages=True)
                 await ctx.send("🔓 Lockdown ended. Channel is now unlocked.")
         else:
@@ -198,20 +199,21 @@ async def lockdown_error(ctx, error):
     else:
         await ctx.send("An error occurred while trying to lock down the channel.")
 
-# Slowmode Command
+# Slowmode 
 @bot.command()
 @commands.has_permissions(manage_channels=True)
 async def slowmode(ctx, seconds: int):
     await ctx.channel.edit(slowmode_delay=seconds)
     await ctx.send(f'Slowmode set to {seconds} seconds.')
 
-# Stop Slowmode Command
+# Stop Slowmode 
 @bot.command()
 @commands.has_permissions(manage_channels=True)
 async def stopslowmode(ctx):
     await ctx.channel.edit(slowmode_delay=0)
     await ctx.send('Slowmode has been disabled.')
 
+#new channel lockdownn removal logic, *need more testing*
 @bot.command()
 @commands.has_permissions(manage_channels=True)
 async def stoplockdown(ctx):
@@ -219,12 +221,12 @@ async def stoplockdown(ctx):
     everyone_role = ctx.guild.default_role
     
     try:
-        # Get current permissions for the @everyone role
+        #getting current permissions for @everyone role 
         current_permissions = channel.overwrites_for(everyone_role)
         
-        # Only change permissions if they are currently restricted
+        # only change permissions if they are currently restricted
         if not current_permissions.send_messages:
-            # Allow everyone to send messages again
+            # allowing everyone to send messages again
             await channel.set_permissions(everyone_role, send_messages=True)
             await ctx.send("🔓 Channel unlocked. Everyone can send messages again.")
         else:
@@ -246,7 +248,7 @@ async def stoplockdown_error(ctx, error):
 @bot.command()
 @commands.has_permissions(manage_channels=True)
 async def unlockchannel(ctx, channel: discord.TextChannel = None):
-    channel = channel or ctx.channel  # If no channel is specified, use the current one
+    channel = channel or ctx.channel  # If no channel is specified, will use the current one
     overwrites = channel.overwrites
     success = True
 
@@ -265,7 +267,7 @@ async def unlockchannel(ctx, channel: discord.TextChannel = None):
     else:
         await ctx.send(f"{channel.mention} unlocking encountered issues. Please check permissions manually.")
 
-# Appoint Mod Command
+# Appoint Mod
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def appointmod(ctx, member: discord.Member):
@@ -275,7 +277,7 @@ async def appointmod(ctx, member: discord.Member):
     await member.add_roles(role)
     await ctx.send(f'{member.mention} has been appointed as a Moderator.')
 
-# Appoint Admin Command
+# Appoint Admin
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def appointadmin(ctx, member: discord.Member):
@@ -285,7 +287,7 @@ async def appointadmin(ctx, member: discord.Member):
     await member.add_roles(role)
     await ctx.send(f'{member.mention} has been appointed as an Admin.')
 
-# Remove Mod Command
+# Remove Mod
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def removemod(ctx, member: discord.Member):
@@ -294,7 +296,7 @@ async def removemod(ctx, member: discord.Member):
         await member.remove_roles(role)
         await ctx.send(f'{member.mention} has been removed from the Moderator role.')
 
-# Remove Admin Command
+# Remove Admin
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def removeadmin(ctx, member: discord.Member):
@@ -302,15 +304,6 @@ async def removeadmin(ctx, member: discord.Member):
     if role in member.roles:
         await member.remove_roles(role)
         await ctx.send(f'{member.mention} has been removed from the Admin role.')
-
-# Purge Bot Command
-@bot.command()
-@commands.has_permissions(manage_messages=True)
-async def purgebot(ctx):
-    def is_bot(message):
-        return message.author == bot.user
-    await ctx.channel.purge(limit=100, check=is_bot)
-    await ctx.send('All messages from the bot have been deleted.')
 
 @bot.command()
 @commands.has_permissions(administrator=True)
@@ -331,7 +324,7 @@ async def massping(ctx, member: discord.Member, *, message=None):
         await ctx.send("You took too long to respond. Mass ping operation cancelled.")
 
 
-# Mass Ping List Command
+# Mass Ping List users
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def masspinglist(ctx):
@@ -366,7 +359,7 @@ async def setuserreply(ctx, member: discord.Member, *, response: str):
         await db.commit()
     await ctx.send(f'Auto-reply for {member.mention} set to: "{response}"')
 
-# Remove Auto-reply Command
+# Remove auto reply
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def removeautoreply(ctx, keyword: str):
@@ -375,7 +368,7 @@ async def removeautoreply(ctx, keyword: str):
         await db.commit()
     await ctx.send(f'Auto-reply for "{keyword}" has been removed.')
 
-# Remove Auto-react Command
+# Remove auto react
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def removeautoreact(ctx, keyword: str):
@@ -384,7 +377,7 @@ async def removeautoreact(ctx, keyword: str):
         await db.commit()
     await ctx.send(f'Auto-react for "{keyword}" has been removed.')
 
-# Remove User Auto-reply Command
+# Remove User auto reply 
 @bot.command()
 @commands.has_permissions(administrator=True)
 async def removeuserreply(ctx, member: discord.Member):
@@ -393,7 +386,7 @@ async def removeuserreply(ctx, member: discord.Member):
         await db.commit()
     await ctx.send(f'Auto-reply for {member.mention} has been removed.')
 
-#Steal emojis 
+#Steal emojis (owo bot refernce)
 class EmojiStealView(View):
     def __init__(self, emojis):
         super().__init__(timeout=None)
@@ -507,6 +500,7 @@ async def removeemoji(ctx, name: str):
     else:
         await ctx.send(f'Emoji {name} not found.')
 
+#this will need the welcome_banner.png in the repo
 @bot.event
 async def on_member_join(member: discord.Member):
     # Get the current time
@@ -606,9 +600,7 @@ async def pfp(ctx, user_id: int):
             user_data = response.json()
             avatar_id = user_data.get("avatar")
             if avatar_id:
-                # Use webp or jpg for higher quality
                 avatar_url = f"https://cdn.discordapp.com/avatars/{user_id}/{avatar_id}.webp?size=2048"
-                # Send the image directly
                 await ctx.send(avatar_url)
             else:
                 await ctx.send("User has no avatar.")
@@ -641,39 +633,40 @@ async def waifu(ctx, amount: int = 1):
         except Exception as e:
             print('Error fetching NSFW waifu image:', e)
             await ctx.send("An error occurred while fetching images.")
-        
-        # Delay to prevent hitting rate limits
-        await asyncio.sleep(2)  # Adjust the delay as needed
+            
+        await asyncio.sleep(2)  # Adjust the delay as needed (ratelimiit issues)
 
-@bot.command()
-@commands.has_permissions(administrator=True)
-async def dnd(ctx):
-    channel = ctx.channel
+
+#not working as the way intended 
+#@bot.command()
+#@commands.has_permissions(administrator=True)
+#async def dnd(ctx):
+#    channel = ctx.channel
     
-    if channel.id in purging_channels:
+#    if channel.id in purging_channels:
         # Stop purging
-        purging_channels[channel.id].stop()
-        del purging_channels[channel.id]
-        await ctx.send("Automatic message deletion is now disabled in this channel.")
-    else:
-        # Start purging
-        async def clear_channel():
-            while channel.id in purging_channels:
-                try:
-                    await channel.purge(limit=5)  # Adjust the limit as needed
-                except discord.Forbidden:
-                    await ctx.send("Bot does not have permission to delete messages in this channel.")
-                    del purging_channels[channel.id]
-                    break
-                except discord.HTTPException as e:
-                    print(f"Error deleting messages: {e}")
-                    del purging_channels[channel.id]
-                    break
-                await asyncio.sleep(5)  # Wait 5 seconds before next purge
-        
-        task = bot.loop.create_task(clear_channel())
-        purging_channels[channel.id] = task
-        await ctx.send("Automatic message deletion is now enabled in this channel.")
+#        purging_channels[channel.id].stop()
+#        del purging_channels[channel.id]
+#        await ctx.send("Automatic message deletion is now disabled in this channel.")
+#    else:
+#        # Start purging
+#        async def clear_channel():
+#            while channel.id in purging_channels:
+#                try:
+#                    await channel.purge(limit=5)  # Adjust the limit as needed
+#                except discord.Forbidden:
+#                    await ctx.send("Bot does not have permission to delete messages in this channel.")
+#                    del purging_channels[channel.id]
+#                    break
+#                except discord.HTTPException as e:
+#                    print(f"Error deleting messages: {e}")
+#                    del purging_channels[channel.id]
+#                    break
+#                await asyncio.sleep(5)  # Wait 5 seconds before next purge
+#        
+#        task = bot.loop.create_task(clear_channel())
+#        purging_channels[channel.id] = task
+#        await ctx.send("Automatic message deletion is now enabled in this channel.")
 
 
 @bot.command()
